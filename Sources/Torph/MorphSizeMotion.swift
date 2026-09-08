@@ -1,3 +1,5 @@
+// Adapted from Torph by Lochie Axon: https://github.com/lochie/torph
+// Copyright (c) 2025 Lochie Axon. MIT licensed; see LICENSE and NOTICE.
 // Upstream's independent width/height continuation and bounded momentum carry.
 import Foundation
 import CoreGraphics

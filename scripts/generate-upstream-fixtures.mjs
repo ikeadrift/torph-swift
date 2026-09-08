@@ -1,3 +1,4 @@
+// Reference fixtures derived from Lochie Axon’s Torph (MIT); see LICENSE and NOTICE.
 import fs from 'node:fs';
 import path from 'node:path';
 import {stripTypeScriptTypes} from 'node:module';

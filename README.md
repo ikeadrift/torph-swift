@@ -1,5 +1,7 @@
 # Torph for SwiftUI
 
+**Original library by [Lochie Axon](https://github.com/lochie).** The text-matching algorithms and original motion behavior come from [Torph](https://github.com/lochie/torph) ([web demo](https://torph.lochie.me)). This is an unofficial SwiftUI port maintained by [ikeadrift](https://github.com/ikeadrift), not an official Lochie release or an indication of his endorsement. See [NOTICE](NOTICE) for source attribution and [LICENSE](LICENSE) for the retained MIT terms.
+
 A dependency-free native Swift port of [Lochie Axon’s Torph](https://torph.lochie.me). Matching characters move to their new positions, new characters fade and slide in, and removed characters fade, slide, and optionally shrink. Word grouping, character origins, anchor-based movement, grouped replacement, numeric slides, and fade timing follow the upstream implementation.
 
 Requires **Swift 6**, **iOS 17+**, **macOS 14+**, **tvOS 17+**, **watchOS 10+**, or **visionOS 1+**. macOS and iOS Simulator builds have been verified; the other declared platforms have not been runtime-tested.
@@ -12,13 +14,13 @@ In Xcode, choose **File → Add Package Dependencies**, enter:
 https://github.com/ikeadrift/torph-swift.git
 ```
 
-Choose **Up to Next Major Version** starting at **0.1.1**, then add the **Torph** product to your app target. This repository is private: sign in to an authorized GitHub account in Xcode's settings.
+Choose **Up to Next Major Version** starting at **0.1.2**, then add the **Torph** product to your app target.
 
 For another Swift package:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ikeadrift/torph-swift.git", from: "0.1.1")
+    .package(url: "https://github.com/ikeadrift/torph-swift.git", from: "0.1.2")
 ],
 targets: [
     .target(name: "MyFeature", dependencies: [

@@ -1,0 +1,22 @@
+Torph for SwiftUI — attribution
+
+Original project: Torph by Lochie Axon
+Project: https://github.com/lochie/torph
+Demo and documentation: https://torph.lochie.me
+Author: https://github.com/lochie
+Copyright (c) 2025 Lochie Axon
+License: MIT; the original copyright and full license text are retained in LICENSE.
+
+This unofficial SwiftUI port adapts the original word/character matching,
+numeric reconciliation, animation anchors, grouped replacement, fade timing,
+spring sampling, and interrupted container motion. The reference implementation
+is commit d79a5aa63226acf97d49c3e34fafb2e85c07b026.
+
+The reference test fixtures were generated from the original library and its
+shared test cases. Documentation/BehaviorParity.md maps the original source
+files to the Swift implementations and documents native platform differences.
+
+The native SwiftUI rendering, platform integration, and native Spring API are
+part of this port, maintained by ikeadrift. Lochie Axon is credited as the
+creator of the original Torph library, not as the author or maintainer of these
+Swift-specific changes. No affiliation or endorsement is implied.

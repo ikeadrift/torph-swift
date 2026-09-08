@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- Add prominent original-author credit, source attribution, and an explicit unofficial-port notice. Preserve the original MIT license.
+- Prepare public GitHub installation instructions.
+
 ## 0.1.1
 
 - Fix disappearing or vertically displaced text after updates, scrolling, and configuration changes: resolve layout anchors inside each measurement probe instead of relying on a changing named coordinate space.

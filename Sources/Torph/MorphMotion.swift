@@ -1,3 +1,5 @@
+// Adapted from Torph by Lochie Axon: https://github.com/lochie/torph
+// Copyright (c) 2025 Lochie Axon. MIT licensed; see LICENSE and NOTICE.
 // Native implementation of Torph's FLIP anchors, grouped replacement, and fade/slide rules.
 import Foundation
 import SwiftUI
