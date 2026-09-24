@@ -7,7 +7,7 @@ import XCTest
 @MainActor
 private final class ConfigurationHarness: ObservableObject {
     @Published var text = "Set to ready"
-    @Published var configuration = TextMorphConfiguration(timing: .easeOut(duration: 0.8))
+    @Published var configuration = TextMorphConfiguration(timing: .easeOut(duration: 0.8), respectReducedMotion: false)
     var starts = 0
     var cancellations = 0
     var completions = 0
