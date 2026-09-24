@@ -73,7 +73,16 @@ public struct TextMorph: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: text))
         .onChange(of: text) { _, _ in update() }
-        .onChange(of: configuration) { _, _ in update(reset: true) }
+        .onChange(of: configuration) { previous, next in
+            // Effects and timing are captured by each trajectory. Let an in-flight
+            // morph finish; new settings belong to the next text update. Only
+            // segmentation, layout, or fallback changes invalidate measurement.
+            if previous.numbers != next.numbers || previous.locale != next.locale ||
+                previous.alignment != next.alignment || previous.lineSpacing != next.lineSpacing ||
+                previous.disabled != next.disabled || previous.respectReducedMotion != next.respectReducedMotion {
+                update(reset: true)
+            }
+        }
         .onChange(of: reduceMotion) { _, _ in update(reset: true) }
         .onChange(of: layoutDirection) { _, _ in update(reset: true) }
         .task(id: activeAnimation) {

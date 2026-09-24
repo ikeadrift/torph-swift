@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+
+- Preserve in-flight morphs when changing scaling, blur, stagger, or timing. Updated settings take effect on the next text change instead of clearing the renderer and cancelling the current animation.
+- Add a hosted SwiftUI regression test for repeated effect changes during animation and the following text transition.
+
 ## 0.3.0
 
 - Add independent entrance, exit, and grouped scale factors, an option to scale around each run’s own center, and `scaling: .none`. Defaults preserve the original appearance.

@@ -14,13 +14,13 @@ In Xcode, choose **File → Add Package Dependencies**, enter:
 https://github.com/ikeadrift/torph-swift.git
 ```
 
-Choose **Up to Next Major Version** starting at **0.3.0**, then add the **Torph** product to your app target.
+Choose **Up to Next Major Version** starting at **0.3.1**, then add the **Torph** product to your app target.
 
 For another Swift package:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ikeadrift/torph-swift.git", from: "0.3.0")
+    .package(url: "https://github.com/ikeadrift/torph-swift.git", from: "0.3.1")
 ],
 targets: [
     .target(name: "MyFeature", dependencies: [
@@ -131,6 +131,8 @@ scaling: .init(
     groupReplacements: true
 )
 ```
+
+Changes to effects or timing apply to the next text morph. An animation already in progress keeps its existing settings and finishes without snapping or cancelling. Changes to segmentation, layout, or disabled/reduced-motion behavior still reset the layout.
 
 These defaults preserve the previous appearance. Set `groupReplacements: false` to use the individual factors and each text run's own center even for large replacements. An intact word remains one run; already split words use individual characters. Set `scaling: .none` to disable all scaling. The existing `scale: false` option disables **all exit scaling**, including grouped exits, while leaving entrance settings independent.
 
