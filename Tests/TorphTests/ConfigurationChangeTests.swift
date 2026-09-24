@@ -30,7 +30,9 @@ final class ConfigurationChangeTests: XCTestCase {
     /// used to clear trajectories and cancel the current animation immediately.
     @MainActor
     func testChangingEffectsMidMorphPreservesAnimationLifecycle() async throws {
-        _ = NSApplication.shared
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+        app.finishLaunching()
         let model = ConfigurationHarness()
         let host = NSHostingView(rootView: ConfigurationHarnessView(model: model))
         let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 500, height: 100),
@@ -39,10 +41,17 @@ final class ConfigurationChangeTests: XCTestCase {
         window.contentView = host
         window.orderFront(nil)
         defer { window.close() }
-        host.layoutSubtreeIfNeeded()
-        try await Task.sleep(for: .milliseconds(150))
+        // Command-line XCTest has no NSApplication event loop. Explicitly drive
+        // layout/display so older SwiftUI runtimes deliver measurement preferences.
+        for _ in 0..<10 {
+            host.layoutSubtreeIfNeeded()
+            window.displayIfNeeded()
+            try await Task.sleep(for: .milliseconds(30))
+        }
         model.text = "Setting as ready"
-        for _ in 0..<50 {
+        for _ in 0..<150 {
+            host.layoutSubtreeIfNeeded()
+            window.displayIfNeeded()
             if model.starts == 1 { break }
             try await Task.sleep(for: .milliseconds(20))
         }
@@ -59,7 +68,9 @@ final class ConfigurationChangeTests: XCTestCase {
         }
         XCTAssertEqual(model.cancellations, 0)
         XCTAssertEqual(model.starts, 1)
-        for _ in 0..<100 {
+        for _ in 0..<150 {
+            host.layoutSubtreeIfNeeded()
+            window.displayIfNeeded()
             if model.completions == 1 { break }
             try await Task.sleep(for: .milliseconds(20))
         }
@@ -68,7 +79,9 @@ final class ConfigurationChangeTests: XCTestCase {
 
         // Settings edits must not leave the next transition unable to start.
         model.text = "Set to ready"
-        for _ in 0..<100 {
+        for _ in 0..<150 {
+            host.layoutSubtreeIfNeeded()
+            window.displayIfNeeded()
             if model.completions == 2 { break }
             try await Task.sleep(for: .milliseconds(20))
         }
