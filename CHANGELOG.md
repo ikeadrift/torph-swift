@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- Add independent entrance, exit, and grouped scale factors, an option to scale around each run’s own center, and `scaling: .none`. Defaults preserve the original appearance.
+- Fix `scale: false` so grouped exits also stop shrinking.
+- Add optional outgoing blur that progresses with the exit fade and continues smoothly from interrupted entrance blur.
+- Add regression coverage for grouped exits, custom factors/origins, no-scale fade/blur, interruptions, and invalid values.
+
 ## 0.2.1
 
 - Keep staggered fade and blur starts in character order across ordinary text, numbers, and grouped replacements.

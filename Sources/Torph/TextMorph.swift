@@ -146,7 +146,7 @@ public struct TextMorph: View {
             let lineCount = max(1,segments.filter { $0.text == "\n" }.count+1)
             trajectories = MorphMotion.plan(diff: request,oldRects: previous,newRects: next,previous: trajectories,
                                             now: now,curve: curve,lineHeight: newBounds.height/Double(lineCount),scaleExits: configuration.scale,
-                                            entrance: configuration.entrance)
+                                            entrance: configuration.entrance, scaling: configuration.scaling, exitBlurRadius: configuration.exitBlurRadius)
             sizeMotion = MorphSizeMotion(from: oldSize,to: newBounds.size,previous: sizeMotion,now: now,curve: curve,hold: segments.isEmpty)
             settledSize = newBounds.size
             completionDeadline = sizeMotion!.width.began+sizeMotion!.width.curve.duration
@@ -262,6 +262,7 @@ public struct TextMorphConfiguration: Equatable, Sendable {
     public enum Alignment: Sendable { case leading, center, trailing }
     public var timing: Timing
     public var numbers: Bool
+    /// Enables exit scaling, including grouped exits. Entrance scaling uses `scaling`.
     public var scale: Bool
     public var disabled: Bool
     public var respectReducedMotion: Bool
@@ -269,12 +270,16 @@ public struct TextMorphConfiguration: Equatable, Sendable {
     public var alignment: Alignment
     public var lineSpacing: CGFloat
     public var entrance: Entrance
+    public var scaling: Scaling
+    /// Blur radius reached as removed text fades out. Zero disables exit blur.
+    public var exitBlurRadius: CGFloat
 
     public init(
         timing: Timing = .easeOut(), numbers: Bool = true, scale: Bool = true,
         disabled: Bool = false, respectReducedMotion: Bool = true,
         locale: Locale = Locale(identifier: "en"), alignment: Alignment = .leading,
-        lineSpacing: CGFloat = 0, entrance: Entrance = .init()
+        lineSpacing: CGFloat = 0, entrance: Entrance = .init(),
+        scaling: Scaling = .init(), exitBlurRadius: CGFloat = 0
     ) {
         self.timing = timing
         self.numbers = numbers
@@ -285,5 +290,7 @@ public struct TextMorphConfiguration: Equatable, Sendable {
         self.alignment = alignment
         self.lineSpacing = lineSpacing
         self.entrance = entrance
+        self.scaling = scaling
+        self.exitBlurRadius = exitBlurRadius
     }
 }

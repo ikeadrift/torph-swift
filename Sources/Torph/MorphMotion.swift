@@ -171,7 +171,8 @@ enum MorphMotion {
     static func plan(diff: MorphDiff, oldRects: [String: CGRect], newRects: [String: CGRect],
                      previous: [MorphTrajectory], now: Double, curve: MorphCurve,
                      lineHeight: Double, scaleExits: Bool,
-                     entrance: TextMorphConfiguration.Entrance = .init()) -> [MorphTrajectory] {
+                     entrance: TextMorphConfiguration.Entrance = .init(),
+                     scaling: TextMorphConfiguration.Scaling = .init(), exitBlurRadius: CGFloat = 0) -> [MorphTrajectory] {
         let old = diff.preparedPrevious.filter { $0.text != "\n" }, new = diff.segments.filter { $0.text != "\n" }
         let oldIDs = Set(old.map(\.id)), newIDs = Set(new.map(\.id)), persistent = oldIDs.intersection(newIDs)
         var oldLookup = Dictionary(uniqueKeysWithValues: previous.filter { !$0.exiting }.map { ($0.id,$0) })
@@ -232,8 +233,8 @@ enum MorphMotion {
                 // Upstream drops scale when it cancels a running segment animation.
                 start.scale = 1
             } else if let center = enterCenters[s.id] {
-                start.scale = 0.8; start.opacity = 0; share = 0.35
-                end.origin = origin(center,rect); start.origin = end.origin
+                start.scale = scaling.factor(entering: true, grouped: true); start.opacity = 0; share = 0.35
+                if scaling.groupReplacements { end.origin = origin(center,rect); start.origin = end.origin }
             } else {
                 let anchorID = anchor(at: index,ids: newOrder,persistent: persistent)
                 if let a = anchorID, let before = presentedRect(a), let after = newRects[a] {
@@ -242,7 +243,7 @@ enum MorphMotion {
                 }
                 start.opacity = 0
                 if let kind = s.kind { start.slide = kind == .digit ? -lineHeight : lineHeight }
-                else { start.scale = 0.95; delay = 0.25; share = 0.5 }
+                else { start.scale = scaling.factor(entering: true, grouped: false); delay = 0.25; share = 0.5 }
             }
             var trajectory = MorphTrajectory(segment: s,start: start,end: end,began: now,curve: curve,fadeDelay: delay,fadeShare: share)
             if let oldMotion, oldRects[s.id] != nil {
@@ -274,18 +275,20 @@ enum MorphMotion {
             guard let rect = oldRects[s.id] else { continue }
             var start = oldLookup[s.id]?.presentation(at: now) ?? MorphPresentation(rect: rect)
             start.scale = 1
-            var end = start; end.opacity = 0; end.blur = 0
+            var end = start; end.opacity = 0
+            end.blur = exitBlurRadius.isFinite ? Double(min(64, max(0, exitBlurRadius))) : 0
+            start.origin = CGPoint(x: 0.5, y: 0.5); end.origin = start.origin
             var share = 0.25
             if let center = exitCenters[s.id] {
-                start.origin = origin(center,start.rect); end.origin = start.origin
-                end.scale = 0.8; share = 0.45
+                if scaling.groupReplacements { start.origin = origin(center,start.rect); end.origin = start.origin }
+                end.scale = scaleExits ? scaling.factor(entering: false, grouped: true) : 1; share = 0.45
             } else {
                 if let a = anchor(at: index,ids: oldOrder,persistent: persistent,forwardFirst: true),
                    let before = oldRects[a], let after = newRects[a] {
                     end.rect.origin.x += after.minX-before.minX; end.rect.origin.y += after.minY-before.minY
                 }
                 if s.kind != nil { end.slide = lineHeight; share = 0.45 }
-                else { end.scale = scaleExits ? 0.95 : 1 }
+                else { end.scale = scaleExits ? scaling.factor(entering: false, grouped: false) : 1 }
             }
             result.append(.init(segment: s,start: start,end: end,began: now,curve: curve,fadeShare: share,exiting: true))
         }

@@ -14,13 +14,13 @@ In Xcode, choose **File → Add Package Dependencies**, enter:
 https://github.com/ikeadrift/torph-swift.git
 ```
 
-Choose **Up to Next Major Version** starting at **0.2.1**, then add the **Torph** product to your app target.
+Choose **Up to Next Major Version** starting at **0.3.0**, then add the **Torph** product to your app target.
 
 For another Swift package:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ikeadrift/torph-swift.git", from: "0.2.1")
+    .package(url: "https://github.com/ikeadrift/torph-swift.git", from: "0.3.0")
 ],
 targets: [
     .target(name: "MyFeature", dependencies: [
@@ -105,6 +105,36 @@ Staggered fade and blur start times use a shared baseline across text, numbers, 
 Only newly inserted visible text participates in the wave; spaces and newlines do not consume delay slots. Enabling stagger splits newly inserted words into Swift graphemes, preserving emoji sequences but potentially changing kerning or ligatures. Existing words stay intact until the matcher needs to split them. Without stagger, new whole words remain whole text runs and blur together. A single entering character has no stagger delay. Interrupted entrances retain their original blur and fade progress, including pending delays.
 
 Blur radius is clamped to 0–64 points and stagger fractions to 0–0.9; nonfinite inputs become zero. To restore the pre-0.2 entrance appearance, use `entrance: .init(blurRadius: 0)`.
+
+## Scaling and outgoing blur
+
+For fade and blur without any shrinking or growing:
+
+```swift
+TextMorph(message, configuration: .init(
+    entrance: .init(blurRadius: 4),
+    scaling: .none,
+    exitBlurRadius: 4
+))
+```
+
+Matching text still moves between its old and new positions, and numeric slides remain active. Removed text blurs as it fades out; interrupted exits begin at the current blur/opacity rather than restarting.
+
+Customize the initial entrance size and final exit size independently (`1` means unchanged):
+
+```swift
+scaling: .init(
+    entrance: 0.95,
+    exit: 0.95,
+    groupedEntrance: 0.8,
+    groupedExit: 0.8,
+    groupReplacements: true
+)
+```
+
+These defaults preserve the previous appearance. Set `groupReplacements: false` to use the individual factors and each text run's own center even for large replacements. An intact word remains one run; already split words use individual characters. Set `scaling: .none` to disable all scaling. The existing `scale: false` option disables **all exit scaling**, including grouped exits, while leaving entrance settings independent.
+
+Scale factors are clamped to `0...2` (nonfinite values use `1`); outgoing blur is clamped to `0...64` points (nonfinite values use `0`). Outgoing blur defaults to zero. These controls do not change matching identities or fade duration.
 
 ## Native springs
 
