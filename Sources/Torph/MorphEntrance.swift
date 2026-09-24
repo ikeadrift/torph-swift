@@ -14,7 +14,7 @@ extension TextMorphConfiguration {
         /// Maps character order to delay: linear, easeIn, easeOut, or a custom Bézier.
         public var staggerCurve: UnitCurve
 
-        public init(blurRadius: CGFloat = 6, stagger: Double = 0, blurStagger: Double? = nil,
+        public init(blurRadius: CGFloat = 2, stagger: Double = 0, blurStagger: Double? = nil,
                     staggerCurve: UnitCurve = .linear) {
             self.blurRadius = blurRadius
             self.stagger = stagger

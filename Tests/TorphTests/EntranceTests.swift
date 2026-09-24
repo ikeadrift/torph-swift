@@ -22,9 +22,9 @@ final class EntranceTests: XCTestCase {
 
     func testDefaultBlurClearsAlongsideFadeAndCanBeDisabled() {
         let item = plan().first!
-        XCTAssertEqual(item.presentation(at: 0).blur, 6)
+        XCTAssertEqual(item.presentation(at: 0).blur, 2)
         XCTAssertEqual(item.presentation(at: 0.5).opacity, 0.5, accuracy: 0.0001)
-        XCTAssertEqual(item.presentation(at: 0.5).blur, 3, accuracy: 0.0001)
+        XCTAssertEqual(item.presentation(at: 0.5).blur, 1, accuracy: 0.0001)
         XCTAssertEqual(item.presentation(at: 1).blur, 0)
         XCTAssertEqual(item.presentation(at: 1).opacity, 1)
         let legacy = plan(entrance: .init(blurRadius: 0))

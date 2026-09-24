@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2
+
+- Reduce the default entrance blur from 6 points to 2 points. Explicit blur values remain unchanged.
+
 ## 0.3.1
 
 - Preserve in-flight morphs when changing scaling, blur, stagger, or timing. Updated settings take effect on the next text change instead of clearing the renderer and cancelling the current animation.

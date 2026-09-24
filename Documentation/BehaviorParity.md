@@ -58,6 +58,12 @@ Surviving numeric segments keep the original inner slide **and fade** timelines 
 
 Regression tests exercise 40 successive updates at 60 ms intervals, numeric fade continuity through repeated edits, centered container edge continuity through empty values, and a resumed width that completes before the latest glyph animation. The demo offers a centered **Run burst** sequence every 120 ms, plus Clear and Restart.
 
+## Switching between unrelated demo cases
+
+The upstream matcher retains history. For `Set to ready` → `Copy` → `Copied`, `Copy` first enters as one word span. The standalone-word fast path then emits character spans without splitting that old span, so the first `Copy` → `Copied` update has no surviving IDs. Later cycles preserve `C`, `o`, and `p`. Running the upstream TypeScript at the reference commit confirms this behavior; the Swift matcher preserves it.
+
+The demo treats selection of a test pair as a new example: it creates a fresh initial renderer for the pair's first value. Go and effect edits preserve that renderer's identity. This makes the first Copy/Copied morph representative of a standalone label rather than an unrelated preceding phrase. Arbitrary phrase-to-label sequences in the library can still encounter the upstream edge case.
+
 ## Native boundaries and remaining differences
 
 Passing the corpus establishes parity for those cases, not universal or pixel-identical equivalence. The following boundaries are explicit:
@@ -82,6 +88,6 @@ The no-argument spring preset intentionally uses faster physical parameters (1 /
 
 ## Native entrance effects (0.2.0)
 
-The matching engine's upstream corpus remains unchanged. The renderer now defaults to a 6-point entrance blur; use `entrance: .init(blurRadius: 0)` to retain the pre-0.2 appearance. Optional character staggering is a native extension, not an upstream parity claim. It splits only inserted words before measurement, distributes fade/blur start times using a SwiftUI `UnitCurve`, and reserves a configurable fraction of the existing duration for that distribution. Individual fade/blur windows shrink so no extra time is appended. Spaces do not participate in the stagger order. Surviving entrance tracks retain their original timelines during interruption.
+The matching engine's upstream corpus remains unchanged. Version 0.2 introduced a 6-point entrance blur (reduced to 2 points in 0.3.2); use `entrance: .init(blurRadius: 0)` to retain the pre-0.2 appearance. Optional character staggering is a native extension, not an upstream parity claim. It splits only inserted words before measurement, distributes fade/blur start times using a SwiftUI `UnitCurve`, and reserves a configurable fraction of the existing duration for that distribution. Individual fade/blur windows shrink so no extra time is appended. Spaces do not participate in the stagger order. Surviving entrance tracks retain their original timelines during interruption.
 
 Two native interruption corrections also apply: split characters inherit their moving parent word's current presentation, and width completion no longer discards an unfinished height animation. The public completion callback still follows width; rendering continues until height and all glyph tracks have settled.

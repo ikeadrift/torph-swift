@@ -14,13 +14,13 @@ In Xcode, choose **File → Add Package Dependencies**, enter:
 https://github.com/ikeadrift/torph-swift.git
 ```
 
-Choose **Up to Next Major Version** starting at **0.3.1**, then add the **Torph** product to your app target.
+Choose **Up to Next Major Version** starting at **0.3.2**, then add the **Torph** product to your app target.
 
 For another Swift package:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ikeadrift/torph-swift.git", from: "0.3.1")
+    .package(url: "https://github.com/ikeadrift/torph-swift.git", from: "0.3.2")
 ],
 targets: [
     .target(name: "MyFeature", dependencies: [
@@ -77,7 +77,7 @@ Default timing matches the web library’s cubic Bézier `(0.19, 1, 0.22, 1)` ov
 
 ## Entrance blur and stagger
 
-New text starts with a **6-point blur** that clears as it fades in. Initial text and Reduce Motion/disabled/RTL fallbacks appear immediately without entrance effects. Retained characters do not restart their entrance effects.
+New text starts with a **2-point blur** that clears as it fades in. Initial text and Reduce Motion/disabled/RTL fallbacks appear immediately without entrance effects. Retained characters do not restart their entrance effects.
 
 ```swift
 TextMorph(message, configuration: .init(
