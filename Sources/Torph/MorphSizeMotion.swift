@@ -37,6 +37,9 @@ struct MorphSizeMotion {
     }
     var width: Axis
     var height: Axis
+    var endTime: Double { max(width.began + width.curve.duration, height.began + height.curve.duration) }
+    /// The width completion callback must not retire a still-running height track.
+    func retained(after time: Double) -> Self? { time < endTime ? self : nil }
     init(from: CGSize,to: CGSize,previous: MorphSizeMotion?,now: Double,curve: MorphCurve,hold: Bool) {
         func axis(_ from: Double,_ to: Double,_ old: Axis?) -> Axis {
             if hold { return Axis(from: from,to: from,began: now,curve: curve) }

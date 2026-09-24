@@ -49,7 +49,11 @@ struct MorphCurve: Sendable {
             }
             duration = end
             let count = min(100,max(32,Int((end*1000/15).rounded())))
-            var values = (0..<count).map { i in i == count-1 ? 1 : (position(Double(i)/Double(count-1)*end)*10000).rounded()/10000 }
+            var values: [Double] = (0..<count).map { i -> Double in
+                if i == count - 1 { return 1.0 }
+                let time = Double(i) / Double(count - 1) * end
+                return (position(time) * 10000.0).rounded() / 10000.0
+            }
             while values.count > 2 && values[values.count-2] == 1 { values.remove(at: values.count-2) }
             samples = values
         }
@@ -86,6 +90,7 @@ struct MorphPresentation {
     var opacity: Double = 1
     var scale: Double = 1
     var slide: Double = 0
+    var blur: Double = 0
     var origin: CGPoint = CGPoint(x: 0.5,y: 0.5)
 }
 
@@ -102,6 +107,17 @@ struct MorphTrajectory: Identifiable {
     // Numeric mover animation is independent of its slot's FLIP animation.
     var inheritedSlide: SlideTrack?
     var inheritedFade: FadeTrack?
+    var entrance: EntranceTrack?
+    struct EntranceTrack {
+        var fade: FadeTrack
+        var blur: FadeTrack
+        var endTime: Double { max(fade.began + fade.duration, blur.began + blur.duration) }
+    }
+    var endTime: Double {
+        max(began + curve.duration, entrance?.endTime ?? 0,
+            inheritedSlide.map { $0.began + $0.curve.duration } ?? 0,
+            inheritedFade.map { $0.began + $0.duration } ?? 0)
+    }
     struct FadeTrack {
         var from: Double; var to: Double; var began: Double; var duration: Double
         var delay: Double; var share: Double
@@ -122,11 +138,16 @@ struct MorphTrajectory: Identifiable {
         result.opacity = start.opacity+(end.opacity-start.opacity)*fade
         result.scale = start.scale+(end.scale-start.scale)*p
         result.slide = start.slide+(end.slide-start.slide)*p
+        result.blur = max(0, start.blur+(end.blur-start.blur)*fade)
         if let track = inheritedSlide {
             let q = track.curve.value(track.curve.duration <= 0 ? 1 : (time-track.began)/track.curve.duration)
             result.slide = track.from+(track.to-track.from)*q
         }
         if let inheritedFade { result.opacity = inheritedFade.value(at: time) }
+        if let entrance {
+            result.opacity = entrance.fade.value(at: time)
+            result.blur = max(0, entrance.blur.value(at: time))
+        }
         return result
     }
 }
@@ -146,14 +167,39 @@ enum MorphMotion {
     }
     static func plan(diff: MorphDiff, oldRects: [String: CGRect], newRects: [String: CGRect],
                      previous: [MorphTrajectory], now: Double, curve: MorphCurve,
-                     lineHeight: Double, scaleExits: Bool) -> [MorphTrajectory] {
+                     lineHeight: Double, scaleExits: Bool,
+                     entrance: TextMorphConfiguration.Entrance = .init()) -> [MorphTrajectory] {
         let old = diff.preparedPrevious.filter { $0.text != "\n" }, new = diff.segments.filter { $0.text != "\n" }
         let oldIDs = Set(old.map(\.id)), newIDs = Set(new.map(\.id)), persistent = oldIDs.intersection(newIDs)
-        let oldLookup = Dictionary(uniqueKeysWithValues: previous.filter { !$0.exiting }.map { ($0.id,$0) })
+        var oldLookup = Dictionary(uniqueKeysWithValues: previous.filter { !$0.exiting }.map { ($0.id,$0) })
+        // A word may split while its whole-word trajectory is still moving. Give
+        // each child the parent's presented displacement and visual tracks before
+        // retargeting, rather than falling back to the previous layout's endpoint.
+        for (parentID, children) in diff.splits {
+            guard let parent = oldLookup[parentID],
+                  let firstRect = children.compactMap({ oldRects[$0.id] }).first else { continue }
+            let presented = parent.presentation(at: now)
+            for child in children {
+                guard let rect = oldRects[child.id] else { continue }
+                var position = presented
+                position.rect = rect.offsetBy(dx: presented.rect.minX - firstRect.minX,
+                                              dy: presented.rect.minY - firstRect.minY)
+                var motion = parent
+                motion.segment = child
+                motion.start = position
+                motion.end = position
+                motion.began = now
+                oldLookup[child.id] = motion
+            }
+        }
         var result = previous.filter { $0.exiting && $0.presentation(at: now).opacity > 0 }
         // A returning ID gets a fresh node, as in DOM reconciliation. Stale exiting
         // nodes use separate render identity (see TextMorph's enumerated scene).
         let entering = newIDs.subtracting(oldIDs), exiting = oldIDs.subtracting(newIDs)
+        let enteringGlyphs = new.filter { entering.contains($0.id) && !$0.text.allSatisfy(\.isWhitespace) }
+        let entranceRanks = Dictionary(uniqueKeysWithValues: enteringGlyphs.enumerated().map { ($0.element.id, $0.offset) })
+        let newOrder = new.map(\.id), oldOrder = old.map(\.id)
+        func presentedRect(_ id: String) -> CGRect? { oldLookup[id]?.presentation(at: now).rect ?? oldRects[id] }
         func centers(_ runs: [[String]], rects: [String: CGRect]) -> [String: CGPoint] {
             var result: [String: CGPoint] = [:]
             for run in runs {
@@ -181,8 +227,8 @@ enum MorphMotion {
                 start.scale = 0.8; start.opacity = 0; share = 0.35
                 end.origin = origin(center,rect); start.origin = end.origin
             } else {
-                let anchorID = anchor(at: index,ids: new.map(\.id),persistent: persistent)
-                if let a = anchorID, let before = oldRects[a], let after = newRects[a] {
+                let anchorID = anchor(at: index,ids: newOrder,persistent: persistent)
+                if let a = anchorID, let before = presentedRect(a), let after = newRects[a] {
                     start.rect.origin.x += before.minX-after.minX
                     start.rect.origin.y += before.minY-after.minY
                 }
@@ -191,6 +237,23 @@ enum MorphMotion {
                 else { start.scale = 0.95; delay = 0.25; share = 0.5 }
             }
             var trajectory = MorphTrajectory(segment: s,start: start,end: end,began: now,curve: curve,fadeDelay: delay,fadeShare: share)
+            if let oldMotion, oldRects[s.id] != nil {
+                trajectory.entrance = oldMotion.entrance
+            } else if entrance.isEnabled, let rank = entranceRanks[s.id], curve.duration > 0 {
+                let fraction = entrance.delayFraction(at: Double(rank) / Double(max(1, enteringGlyphs.count - 1)))
+                // A single glyph has no stagger. Compress the original fade window
+                // to reserve room for the full wave without extending the timeline.
+                let fadeSpread = enteringGlyphs.count > 1 ? entrance.fadeSpread : 0
+                let blurSpread = enteringGlyphs.count > 1 ? entrance.blurSpread : 0
+                trajectory.start.blur = entrance.radius
+                trajectory.entrance = .init(
+                    fade: .init(from: 0, to: 1, began: now, duration: curve.duration,
+                                delay: delay * (1 - fadeSpread) + fraction * fadeSpread,
+                                share: share * (1 - fadeSpread)),
+                    blur: .init(from: entrance.radius, to: 0, began: now, duration: curve.duration,
+                                delay: delay * (1 - blurSpread) + fraction * blurSpread,
+                                share: share * (1 - blurSpread)))
+            }
             if s.kind != nil, oldRects[s.id] != nil, let oldMotion {
                 trajectory.inheritedSlide = oldMotion.inheritedSlide ?? .init(from: oldMotion.start.slide,to: oldMotion.end.slide,began: oldMotion.began,curve: oldMotion.curve)
                 trajectory.inheritedFade = oldMotion.inheritedFade ?? .init(
@@ -203,13 +266,13 @@ enum MorphMotion {
             guard let rect = oldRects[s.id] else { continue }
             var start = oldLookup[s.id]?.presentation(at: now) ?? MorphPresentation(rect: rect)
             start.scale = 1
-            var end = start; end.opacity = 0
+            var end = start; end.opacity = 0; end.blur = 0
             var share = 0.25
             if let center = exitCenters[s.id] {
                 start.origin = origin(center,start.rect); end.origin = start.origin
                 end.scale = 0.8; share = 0.45
             } else {
-                if let a = anchor(at: index,ids: old.map(\.id),persistent: persistent,forwardFirst: true),
+                if let a = anchor(at: index,ids: oldOrder,persistent: persistent,forwardFirst: true),
                    let before = oldRects[a], let after = newRects[a] {
                     end.rect.origin.x += after.minX-before.minX; end.rect.origin.y += after.minY-before.minY
                 }

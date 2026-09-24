@@ -1,0 +1,21 @@
+name: Swift package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: swift --version
+      - name: macOS tests
+        run: swift test
+      - name: iOS Simulator build
+        run: xcodebuild -scheme Torph -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/torph-ios" CODE_SIGNING_ALLOWED=NO build

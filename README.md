@@ -2,7 +2,7 @@
 
 **Original library by [Lochie Axon](https://github.com/lochie).** The text-matching algorithms and original motion behavior come from [Torph](https://github.com/lochie/torph) ([web demo](https://torph.lochie.me)). This is an unofficial SwiftUI port maintained by [ikeadrift](https://github.com/ikeadrift), not an official Lochie release or an indication of his endorsement. See [NOTICE](NOTICE) for source attribution and [LICENSE](LICENSE) for the retained MIT terms.
 
-A dependency-free native Swift port of [Lochie Axon’s Torph](https://torph.lochie.me). Matching characters move to their new positions, new characters fade and slide in, and removed characters fade, slide, and optionally shrink. Word grouping, character origins, anchor-based movement, grouped replacement, numeric slides, and fade timing follow the upstream implementation.
+A dependency-free native Swift port of [Lochie Axon’s Torph](https://torph.lochie.me). Matching characters move to their new positions, new characters fade and slide in, and removed characters fade, slide, and optionally shrink. Word grouping, character origins, anchor-based movement, grouped replacement, and numeric slides follow the upstream implementation. Version 0.2 adds native entrance blur and configurable character staggering.
 
 Requires **Swift 6**, **iOS 17+**, **macOS 14+**, **tvOS 17+**, **watchOS 10+**, or **visionOS 1+**. macOS and iOS Simulator builds have been verified; the other declared platforms have not been runtime-tested.
 
@@ -14,13 +14,13 @@ In Xcode, choose **File → Add Package Dependencies**, enter:
 https://github.com/ikeadrift/torph-swift.git
 ```
 
-Choose **Up to Next Major Version** starting at **0.1.2**, then add the **Torph** product to your app target.
+Choose **Up to Next Major Version** starting at **0.2.0**, then add the **Torph** product to your app target.
 
 For another Swift package:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ikeadrift/torph-swift.git", from: "0.1.2")
+    .package(url: "https://github.com/ikeadrift/torph-swift.git", from: "0.2.0")
 ],
 targets: [
     .target(name: "MyFeature", dependencies: [
@@ -73,7 +73,36 @@ TextMorph(
 )
 ```
 
-Default timing matches the web library’s cubic Bézier `(0.19, 1, 0.22, 1)` over **0.4 seconds**. Unlike the web API, durations use seconds. Springs use the upstream physics, sampled curve, and settling-duration algorithm. Completion follows the container width animation, including its remaining time when an update retains the same target width. Glyph animations finish independently. A new update cancels the previous callback token; stale completions are ignored. Disappearance tears down animations without firing completion/cancellation callbacks, as upstream does. Immediate updates do not fire animation callbacks.
+Default timing matches the web library’s cubic Bézier `(0.19, 1, 0.22, 1)` over **0.4 seconds**. Unlike the web API, durations use seconds. Springs use the upstream physics, sampled curve, and settling-duration algorithm. Completion follows the container width animation, including its remaining time when an update retains the same target width. Glyph animations and the container height finish independently. Stagger never extends the configured motion duration, though glyphs can finish after a resumed width animation. A new update cancels the previous callback token; stale completions are ignored. Disappearance tears down animations without firing completion/cancellation callbacks, as upstream does. Immediate updates do not fire animation callbacks.
+
+## Entrance blur and stagger
+
+New text starts with a **6-point blur** that clears as it fades in. Initial text and Reduce Motion/disabled/RTL fallbacks appear immediately without entrance effects. Retained characters do not restart their entrance effects.
+
+```swift
+TextMorph(message, configuration: .init(
+    timing: .easeOut(duration: 0.6),
+    entrance: .init(
+        blurRadius: 6,
+        stagger: 0.25,
+        staggerCurve: .easeInOut
+    )
+))
+```
+
+`stagger` is the total first-to-last entrance delay as a fraction of the animation duration, not a per-character delay. Here the entrances are spread across 0.15 seconds. Each fade/blur window is compressed to keep the complete effect within the 0.6-second animation. Stagger defaults to `0`; it automatically follows the settling duration when using springs.
+
+`staggerCurve` controls how character order maps to start times. It accepts SwiftUI `UnitCurve` values such as `.linear` (the default), `.easeIn`, `.easeOut`, `.easeInOut`, or `.bezier(startControlPoint:endControlPoint:)`. This is separate from `timing`, which controls movement.
+
+Blur follows the fade stagger by default. Set `blurStagger` to tune its spread independently:
+
+```swift
+entrance: .init(blurRadius: 8, stagger: 0.3, blurStagger: 0.15, staggerCurve: .easeOut)
+```
+
+Only newly inserted visible text participates in the wave; spaces and newlines do not consume delay slots. Enabling stagger splits newly inserted words into Swift graphemes, preserving emoji sequences but potentially changing kerning or ligatures. Existing words stay intact until the matcher needs to split them. Without stagger, new whole words remain whole text runs and blur together. A single entering character has no stagger delay. Interrupted entrances retain their original blur and fade progress, including pending delays.
+
+Blur radius is clamped to 0–64 points and stagger fractions to 0–0.9; nonfinite inputs become zero. To restore the pre-0.2 entrance appearance, use `entrance: .init(blurRadius: 0)`.
 
 ## Native springs
 

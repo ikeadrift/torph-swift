@@ -79,3 +79,9 @@ The library’s earlier simplified matcher, always-grapheme segmentation, generi
 A changing named coordinate space could transiently return global child frames during SwiftUI layout. In the counter reproduction, a digit's local Y became approximately 670 points after changing the motion preset. Measurement probes now resolve bounds anchors directly, avoiding that fallback. Verified in the scrolled counter with preset changes and repeated increments.
 
 The no-argument spring preset intentionally uses faster physical parameters (1 / 360 / 30). Explicit 1 / 100 / 10 retains the upstream spring. Opt-in native `Spring` values use SwiftUI's solver, with a 10-second settling cap; they are an additional native API, not an upstream sampled-curve claim.
+
+## Native entrance effects (0.2.0)
+
+The matching engine's upstream corpus remains unchanged. The renderer now defaults to a 6-point entrance blur; use `entrance: .init(blurRadius: 0)` to retain the pre-0.2 appearance. Optional character staggering is a native extension, not an upstream parity claim. It splits only inserted words before measurement, distributes fade/blur start times using a SwiftUI `UnitCurve`, and reserves a configurable fraction of the existing duration for that distribution. Individual fade/blur windows shrink so no extra time is appended. Spaces do not participate in the stagger order. Surviving entrance tracks retain their original timelines during interruption.
+
+Two native interruption corrections also apply: split characters inherit their moving parent word's current presentation, and width completion no longer discards an unfinished height animation. The public completion callback still follows width; rendering continues until height and all glyph tracks have settled.

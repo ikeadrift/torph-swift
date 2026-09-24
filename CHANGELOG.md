@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0
+
+- New text now enters with a configurable 6-point blur that clears with its fade. Set `entrance: .init(blurRadius: 0)` for the previous appearance.
+- Add configurable character stagger as a fraction of animation duration, native SwiftUI `UnitCurve` stagger curves, and an optional independent blur stagger. All entrance effects fit inside the existing animation timeline.
+- Preserve pending entrance delays and blur/fade progress through rapid updates. Only newly inserted words split into graphemes when staggering is enabled.
+- Fix position jumps when a moving whole word splits into characters; entering characters anchor to the current presentation position.
+- Keep interrupted container height animations running after width completion, while retaining the documented width-based completion callback.
+- Fix the spring sampling expression that failed to compile with Swift 6.2.1.
+- Add regression coverage for interruption, blur, stagger, custom curves, Unicode, and invalid inputs, plus macOS test and iOS Simulator build CI.
+
 ## 0.1.2
 
 - Add prominent original-author credit, source attribution, and an explicit unofficial-port notice. Preserve the original MIT license.

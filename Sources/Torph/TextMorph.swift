@@ -81,7 +81,7 @@ public struct TextMorph: View {
             try? await Task.sleep(for: .seconds(max(0,completionDeadline-Date.timeIntervalSinceReferenceDate)))
             guard !Task.isCancelled, activeAnimation == token else { return }
             activeAnimation = nil
-            sizeMotion = nil
+            sizeMotion = sizeMotion?.retained(after: completionDeadline)
             // Upstream's completion follows the width animation. Resumed width can
             // finish before the latest glyph animations; don't snap those to rest.
             onAnimationComplete?()
@@ -91,6 +91,7 @@ public struct TextMorph: View {
             try? await Task.sleep(for: .seconds(max(0,renderDeadline-Date.timeIntervalSinceReferenceDate)))
             guard !Task.isCancelled, renderAnimation == token else { return }
             renderAnimation = nil
+            sizeMotion = nil
             settleGlyphs()
         }
         .onDisappear {
@@ -105,7 +106,7 @@ public struct TextMorph: View {
     private func settleGlyphs() {
         trajectories = trajectories.filter { !$0.exiting }.map { item in
             var item = item; item.start = item.end; item.began = 0
-            item.inheritedSlide = nil; item.inheritedFade = nil; return item
+            item.inheritedSlide = nil; item.inheritedFade = nil; item.entrance = nil; return item
         }
     }
 
@@ -119,6 +120,7 @@ public struct TextMorph: View {
         // No view transition is allowed to invent a position for a newly inserted glyph.
         // Both layouts are measured first; MorphMotion explicitly supplies its anchor.
         let diff = TextMatcher.diff(from: segments,to: text,numbers: configuration.numbers,locale: configuration.locale,cursorIndex: cursorIndex)
+            .preparingEntrance(configuration.entrance)
         request = diff; segments = diff.segments; measurementID = UUID()
     }
 
@@ -143,11 +145,12 @@ public struct TextMorph: View {
             if activeAnimation != nil { onAnimationCancel?() }
             let lineCount = max(1,segments.filter { $0.text == "\n" }.count+1)
             trajectories = MorphMotion.plan(diff: request,oldRects: previous,newRects: next,previous: trajectories,
-                                            now: now,curve: curve,lineHeight: newBounds.height/Double(lineCount),scaleExits: configuration.scale)
+                                            now: now,curve: curve,lineHeight: newBounds.height/Double(lineCount),scaleExits: configuration.scale,
+                                            entrance: configuration.entrance)
             sizeMotion = MorphSizeMotion(from: oldSize,to: newBounds.size,previous: sizeMotion,now: now,curve: curve,hold: segments.isEmpty)
             settledSize = newBounds.size
             completionDeadline = sizeMotion!.width.began+sizeMotion!.width.curve.duration
-            renderDeadline = max(completionDeadline, trajectories.map { $0.began+$0.curve.duration }.max() ?? now)
+            renderDeadline = max(sizeMotion!.endTime, trajectories.map(\.endTime).max() ?? now)
             self.request = nil; activeAnimation = UUID(); renderAnimation = UUID(); hasMeasured = true
         } else if !hasMeasured {
             trajectories = segments.compactMap { segment in
@@ -189,6 +192,7 @@ private struct MotionGlyph: View {
             } else { glyph }
         }
         .scaleEffect(presentation.scale,anchor: UnitPoint(x: presentation.origin.x,y: presentation.origin.y))
+        .blur(radius: presentation.blur)
         .opacity(presentation.opacity)
         .offset(x: presentation.rect.minX,y: presentation.rect.minY)
         .allowsHitTesting(false)
@@ -264,12 +268,13 @@ public struct TextMorphConfiguration: Equatable, Sendable {
     public var locale: Locale
     public var alignment: Alignment
     public var lineSpacing: CGFloat
+    public var entrance: Entrance
 
     public init(
         timing: Timing = .easeOut(), numbers: Bool = true, scale: Bool = true,
         disabled: Bool = false, respectReducedMotion: Bool = true,
         locale: Locale = Locale(identifier: "en"), alignment: Alignment = .leading,
-        lineSpacing: CGFloat = 0
+        lineSpacing: CGFloat = 0, entrance: Entrance = .init()
     ) {
         self.timing = timing
         self.numbers = numbers
@@ -279,5 +284,6 @@ public struct TextMorphConfiguration: Equatable, Sendable {
         self.locale = locale
         self.alignment = alignment
         self.lineSpacing = lineSpacing
+        self.entrance = entrance
     }
 }
