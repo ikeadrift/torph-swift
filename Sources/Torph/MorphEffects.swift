@@ -25,9 +25,9 @@ extension TextMorphConfiguration {
                   exit: .init(scale: 1), replacementScaling: .individual)
         }
         /// Fade and blur in both directions with no scaling. Radius is in points.
-        public static func fadeAndBlur(blurRadius: CGFloat = 2) -> Self {
-            .init(entrance: .init(scale: 1, blurRadius: blurRadius),
-                  exit: .init(scale: 1, blurRadius: blurRadius), replacementScaling: .individual)
+        public static func fadeAndBlur(blurRadius: CGFloat = 2, blurCurve: UnitCurve = .linear) -> Self {
+            .init(entrance: .init(scale: 1, blurRadius: blurRadius, blurCurve: blurCurve),
+                  exit: .init(scale: 1, blurRadius: blurRadius, blurCurve: blurCurve), replacementScaling: .individual)
         }
 
         func scaleFactor(entering: Bool, grouped: Bool) -> Double {
@@ -49,10 +49,14 @@ extension TextMorphConfiguration {
         public var scale: Double
         /// Initial blur in points. Zero disables entrance blur.
         public var blurRadius: CGFloat
+        /// Eases blur interpolation inside the existing fade window, independently
+        /// of opacity and movement. Linear preserves the default behavior.
+        public var blurCurve: UnitCurve
 
-        public init(scale: Double = 0.95, blurRadius: CGFloat = 2) {
+        public init(scale: Double = 0.95, blurRadius: CGFloat = 2, blurCurve: UnitCurve = .linear) {
             self.scale = scale
             self.blurRadius = blurRadius
+            self.blurCurve = blurCurve
         }
 
         var radius: Double { effectBlurRadius(blurRadius) }
@@ -64,10 +68,14 @@ extension TextMorphConfiguration {
         public var scale: Double
         /// Final blur in points. Zero disables exit blur.
         public var blurRadius: CGFloat
+        /// Eases blur interpolation inside the existing fade window, independently
+        /// of opacity and movement. Linear preserves the default behavior.
+        public var blurCurve: UnitCurve
 
-        public init(scale: Double = 0.95, blurRadius: CGFloat = 0) {
+        public init(scale: Double = 0.95, blurRadius: CGFloat = 0, blurCurve: UnitCurve = .linear) {
             self.scale = scale
             self.blurRadius = blurRadius
+            self.blurCurve = blurCurve
         }
         var radius: Double { effectBlurRadius(blurRadius) }
     }

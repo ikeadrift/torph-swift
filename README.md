@@ -14,13 +14,13 @@ In Xcode, choose **File → Add Package Dependencies**, enter:
 https://github.com/ikeadrift/torph-swift.git
 ```
 
-Choose **Up to Next Minor Version** starting at **0.4.0**, then add the **Torph** product to your app target.
+Choose **Up to Next Minor Version** starting at **0.4.1**, then add the **Torph** product to your app target.
 
 For another Swift package:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ikeadrift/torph-swift.git", .upToNextMinor(from: "0.4.0"))
+    .package(url: "https://github.com/ikeadrift/torph-swift.git", .upToNextMinor(from: "0.4.1"))
 ],
 targets: [
     .target(name: "MyFeature", dependencies: [
@@ -107,6 +107,25 @@ TextMorph(message, configuration: .init(
 ```
 
 `entrance` describes the starting scale and blur of inserted text; it settles to scale 1 and blur 0. `exit` describes the final scale and blur of removed text. Scale `1` means unchanged size; blur `0` disables blur. Fade timing follows the original Torph motion rules. Ordinary numeric runs use their original slide/fade rules instead of individual text scaling.
+
+### Blur curves
+
+Entrance and exit each accept a native SwiftUI `UnitCurve`, including custom Béziers:
+
+```swift
+var effects = TextMorphConfiguration.Effects.fadeAndBlur()
+effects.entrance.blurCurve = .easeOut
+effects.exit.blurCurve = .easeIn
+// Or use one curve for both directions:
+let soft = TextMorphConfiguration.Effects.fadeAndBlur(blurCurve: .easeInOut)
+// Custom blur progress:
+effects.entrance.blurCurve = .bezier(
+    startControlPoint: .init(x: 0.2, y: 0),
+    endControlPoint: .init(x: 0.8, y: 1)
+)
+```
+
+The default is `.linear`. The curve eases blur progress **within the existing fade window**; it does not change opacity, movement, scaling, duration, or when characters start. Entrance interpolates its initial blur to zero; exit interpolates the current blur to its target radius. Overshooting curves are bounded to those endpoints. Interrupted text retains its original blur curve/timeline; an exit begins at the currently visible blur. No stagger or spread is involved.
 
 ### Grouped scaling
 

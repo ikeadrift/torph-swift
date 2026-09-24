@@ -104,6 +104,7 @@ struct MorphTrajectory: Identifiable {
     var fadeDelay: Double = 0
     var fadeShare: Double = 0.25
     var exiting = false
+    var blurCurve: UnitCurve = .linear
     // Numeric mover animation is independent of its slot's FLIP animation.
     var inheritedSlide: SlideTrack?
     var inheritedFade: FadeTrack?
@@ -111,6 +112,7 @@ struct MorphTrajectory: Identifiable {
     struct EntranceTrack {
         var fade: FadeTrack
         var blur: FadeTrack
+        var blurCurve: UnitCurve = .linear
         var endTime: Double { max(fade.began + fade.duration, blur.began + blur.duration) }
     }
     var endTime: Double {
@@ -121,10 +123,10 @@ struct MorphTrajectory: Identifiable {
     struct FadeTrack {
         var from: Double; var to: Double; var began: Double; var duration: Double
         var delay: Double; var share: Double
-        func value(at time: Double) -> Double {
+        func value(at time: Double, curve: UnitCurve = .linear) -> Double {
             let progress = duration <= 0 ? 1 : max(0,(time-began)/duration)
             let t = min(1,max(0,(progress-delay)/max(0.00001,share)))
-            return from+(to-from)*t
+            return from+(to-from)*blurProgress(t, curve: curve)
         }
     }
     struct SlideTrack { var from: Double; var to: Double; var began: Double; var curve: MorphCurve }
@@ -138,7 +140,7 @@ struct MorphTrajectory: Identifiable {
         result.opacity = start.opacity+(end.opacity-start.opacity)*fade
         result.scale = start.scale+(end.scale-start.scale)*p
         result.slide = start.slide+(end.slide-start.slide)*p
-        result.blur = max(0, start.blur+(end.blur-start.blur)*fade)
+        result.blur = max(0, start.blur+(end.blur-start.blur)*blurProgress(fade, curve: blurCurve))
         if let track = inheritedSlide {
             let q = track.curve.value(track.curve.duration <= 0 ? 1 : (time-track.began)/track.curve.duration)
             result.slide = track.from+(track.to-track.from)*q
@@ -146,7 +148,7 @@ struct MorphTrajectory: Identifiable {
         if let inheritedFade { result.opacity = inheritedFade.value(at: time) }
         if let entrance {
             result.opacity = entrance.fade.value(at: time)
-            result.blur = max(0, entrance.blur.value(at: time))
+            result.blur = max(0, entrance.blur.value(at: time, curve: entrance.blurCurve))
         }
         return result
     }
@@ -244,7 +246,8 @@ enum MorphMotion {
                 trajectory.start.blur = entrance.radius
                 trajectory.entrance = .init(
                     fade: .init(from: 0, to: 1, began: now, duration: curve.duration, delay: delay, share: share),
-                    blur: .init(from: entrance.radius, to: 0, began: now, duration: curve.duration, delay: delay, share: share))
+                    blur: .init(from: entrance.radius, to: 0, began: now, duration: curve.duration, delay: delay, share: share),
+                    blurCurve: entrance.blurCurve)
             }
             if s.kind != nil, oldRects[s.id] != nil, let oldMotion {
                 trajectory.inheritedSlide = oldMotion.inheritedSlide ?? .init(from: oldMotion.start.slide,to: oldMotion.end.slide,began: oldMotion.began,curve: oldMotion.curve)
@@ -273,8 +276,18 @@ enum MorphMotion {
                 if s.kind != nil { end.slide = lineHeight; share = 0.45 }
                 else { end.scale = effects.scaleFactor(entering: false, grouped: false) }
             }
-            result.append(.init(segment: s,start: start,end: end,began: now,curve: curve,fadeShare: share,exiting: true))
+            result.append(.init(segment: s,start: start,end: end,began: now,curve: curve,fadeShare: share,exiting: true,blurCurve: effects.exit.blurCurve))
         }
         return result
     }
+}
+
+/// UnitCurve accepts custom Béziers. Keep blur bounded to its endpoints and
+/// retain linear progress if a malformed curve produces a nonfinite sample.
+private func blurProgress(_ progress: Double, curve: UnitCurve) -> Double {
+    if progress <= 0 { return 0 }
+    if progress >= 1 { return 1 }
+    if curve == .linear { return progress }
+    let value = curve.value(at: progress)
+    return value.isFinite ? min(1, max(0, value)) : progress
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1
+
+- Add independent native `UnitCurve` blur easing to entrance and exit, plus a shared `blurCurve` parameter for `.fadeAndBlur()`. Linear remains the default.
+- Ease only blur progress within the original fade window; preserve opacity, movement, scale, and duration.
+- Preserve curved blur through interruptions and whole-word splits, and bound custom Bézier output to the blur endpoints.
+
 ## 0.4.0
 
 - **Breaking:** consolidate appearance into `effects.entrance`, `effects.exit`, and `effects.replacementScaling`. Remove the top-level `scale`, `entrance`, `scaling`, and `exitBlurRadius` properties and the `Scaling` type.
