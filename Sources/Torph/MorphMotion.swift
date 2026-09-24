@@ -159,9 +159,12 @@ enum MorphMotion {
         func forward() -> String? { ids.dropFirst(index+1).first { persistent.contains($0) } }
         return forwardFirst ? forward() ?? backward() : backward() ?? forward()
     }
-    static func groups(_ all: [MorphSegment], members: Set<String>) -> [[String]] {
+    static func groups(_ all: [MorphSegment], members: Set<String>, logicalOrigins: [String: String] = [:]) -> [[String]] {
         var result: [[String]] = [], run: [String] = []
-        func flush() { if run.count >= 6 { result.append(run) }; run = [] }
+        func flush() {
+            if Set(run.map { logicalOrigins[$0] ?? $0 }).count >= 6 { result.append(run) }
+            run = []
+        }
         for s in all { if members.contains(s.id) { run.append(s.id) } else { flush() } }
         flush(); return result
     }
@@ -208,8 +211,13 @@ enum MorphMotion {
             }
             return result
         }
-        let enterCenters = centers(groups(new,members: entering),rects: newRects)
+        let enterCenters = centers(groups(new,members: entering,logicalOrigins: diff.entranceParents),rects: newRects)
         let exitCenters = centers(groups(old,members: exiting),rects: oldRects)
+        // A wave needs one shared starting delay. Per-kind base delays can make
+        // later digits/grouped runs start before earlier ordinary text.
+        let entranceBaseDelay = enteringGlyphs.map {
+            $0.kind != nil || enterCenters[$0.id] != nil ? 0.0 : 0.25
+        }.min() ?? 0
         func origin(_ center: CGPoint, _ rect: CGRect) -> CGPoint {
             CGPoint(x: (center.x-rect.minX)/max(rect.width,0.001),y: (center.y-rect.minY)/max(rect.height,0.001))
         }
@@ -248,10 +256,10 @@ enum MorphMotion {
                 trajectory.start.blur = entrance.radius
                 trajectory.entrance = .init(
                     fade: .init(from: 0, to: 1, began: now, duration: curve.duration,
-                                delay: delay * (1 - fadeSpread) + fraction * fadeSpread,
+                                delay: (fadeSpread > 0 ? entranceBaseDelay : delay) * (1 - fadeSpread) + fraction * fadeSpread,
                                 share: share * (1 - fadeSpread)),
                     blur: .init(from: entrance.radius, to: 0, began: now, duration: curve.duration,
-                                delay: delay * (1 - blurSpread) + fraction * blurSpread,
+                                delay: (blurSpread > 0 ? entranceBaseDelay : delay) * (1 - blurSpread) + fraction * blurSpread,
                                 share: share * (1 - blurSpread)))
             }
             if s.kind != nil, oldRects[s.id] != nil, let oldMotion {

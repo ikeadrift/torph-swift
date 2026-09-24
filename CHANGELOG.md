@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- Keep staggered fade and blur starts in character order across ordinary text, numbers, and grouped replacements.
+- Preserve entering words’ movement anchors when character staggering splits a long word; the split no longer incorrectly triggers grouped replacement.
+- Add regression tests for mixed entrance order, independent blur spread, anchor movement, and genuine replacement groups.
+
 ## 0.2.0
 
 - New text now enters with a configurable 6-point blur that clears with its fade. Set `entrance: .init(blurRadius: 0)` for the previous appearance.

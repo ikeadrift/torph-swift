@@ -44,14 +44,16 @@ extension MorphDiff {
         let oldIDs = Set(preparedPrevious.map(\.id))
         var allocator = IDAllocator()
         allocator.used = oldIDs.union(segments.map(\.id))
+        var parents = entranceParents
         let next = segments.flatMap { segment -> [MorphSegment] in
             guard !oldIDs.contains(segment.id), segment.text.count > 1,
                   !segment.text.allSatisfy(\.isWhitespace) else { return [segment] }
             return segment.text.enumerated().map { index, character in
-                MorphSegment(id: allocator.take("\(segment.id):entrance:\(index)"),
-                             text: String(character), kind: segment.kind)
+                let id = allocator.take("\(segment.id):entrance:\(index)")
+                parents[id] = segment.id
+                return MorphSegment(id: id, text: String(character), kind: segment.kind)
             }
         }
-        return MorphDiff(segments: next, splits: splits, preparedPrevious: preparedPrevious)
+        return MorphDiff(segments: next, splits: splits, preparedPrevious: preparedPrevious, entranceParents: parents)
     }
 }

@@ -14,13 +14,13 @@ In Xcode, choose **File → Add Package Dependencies**, enter:
 https://github.com/ikeadrift/torph-swift.git
 ```
 
-Choose **Up to Next Major Version** starting at **0.2.0**, then add the **Torph** product to your app target.
+Choose **Up to Next Major Version** starting at **0.2.1**, then add the **Torph** product to your app target.
 
 For another Swift package:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ikeadrift/torph-swift.git", from: "0.2.0")
+    .package(url: "https://github.com/ikeadrift/torph-swift.git", from: "0.2.1")
 ],
 targets: [
     .target(name: "MyFeature", dependencies: [
@@ -99,6 +99,8 @@ Blur follows the fade stagger by default. Set `blurStagger` to tune its spread i
 ```swift
 entrance: .init(blurRadius: 8, stagger: 0.3, blurStagger: 0.15, staggerCurve: .easeOut)
 ```
+
+Staggered fade and blur start times use a shared baseline across text, numbers, and replacement groups, so their order follows the configured curve. Splitting a word for staggering preserves its original entry grouping and movement anchor.
 
 Only newly inserted visible text participates in the wave; spaces and newlines do not consume delay slots. Enabling stagger splits newly inserted words into Swift graphemes, preserving emoji sequences but potentially changing kerning or ligatures. Existing words stay intact until the matcher needs to split them. Without stagger, new whole words remain whole text runs and blur together. A single entering character has no stagger delay. Interrupted entrances retain their original blur and fade progress, including pending delays.
 
