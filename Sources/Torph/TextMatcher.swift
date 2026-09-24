@@ -19,9 +19,6 @@ public struct MorphDiff: Sendable {
     /// Old whole-word nodes must be split BEFORE measuring either side.
     public let splits: [String: [MorphSegment]]
     public let preparedPrevious: [MorphSegment]
-    // Rendering-only character splits must not turn one inserted word into a
-    // six-segment replacement group. Maps fresh character IDs to their source run.
-    var entranceParents: [String: String] = [:]
     public var inserted: [MorphSegment] {
         let ids = Set(preparedPrevious.map(\.id)); return segments.filter { !ids.contains($0.id) }
     }

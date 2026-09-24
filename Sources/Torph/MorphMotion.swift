@@ -159,10 +159,10 @@ enum MorphMotion {
         func forward() -> String? { ids.dropFirst(index+1).first { persistent.contains($0) } }
         return forwardFirst ? forward() ?? backward() : backward() ?? forward()
     }
-    static func groups(_ all: [MorphSegment], members: Set<String>, logicalOrigins: [String: String] = [:]) -> [[String]] {
+    static func groups(_ all: [MorphSegment], members: Set<String>) -> [[String]] {
         var result: [[String]] = [], run: [String] = []
         func flush() {
-            if Set(run.map { logicalOrigins[$0] ?? $0 }).count >= 6 { result.append(run) }
+            if run.count >= 6 { result.append(run) }
             run = []
         }
         for s in all { if members.contains(s.id) { run.append(s.id) } else { flush() } }
@@ -170,9 +170,8 @@ enum MorphMotion {
     }
     static func plan(diff: MorphDiff, oldRects: [String: CGRect], newRects: [String: CGRect],
                      previous: [MorphTrajectory], now: Double, curve: MorphCurve,
-                     lineHeight: Double, scaleExits: Bool,
-                     entrance: TextMorphConfiguration.Entrance = .init(),
-                     scaling: TextMorphConfiguration.Scaling = .init(), exitBlurRadius: CGFloat = 0) -> [MorphTrajectory] {
+                     lineHeight: Double, effects: TextMorphConfiguration.Effects = .standard) -> [MorphTrajectory] {
+        let entrance = effects.entrance
         let old = diff.preparedPrevious.filter { $0.text != "\n" }, new = diff.segments.filter { $0.text != "\n" }
         let oldIDs = Set(old.map(\.id)), newIDs = Set(new.map(\.id)), persistent = oldIDs.intersection(newIDs)
         var oldLookup = Dictionary(uniqueKeysWithValues: previous.filter { !$0.exiting }.map { ($0.id,$0) })
@@ -200,8 +199,6 @@ enum MorphMotion {
         // A returning ID gets a fresh node, as in DOM reconciliation. Stale exiting
         // nodes use separate render identity (see TextMorph's enumerated scene).
         let entering = newIDs.subtracting(oldIDs), exiting = oldIDs.subtracting(newIDs)
-        let enteringGlyphs = new.filter { entering.contains($0.id) && !$0.text.allSatisfy(\.isWhitespace) }
-        let entranceRanks = Dictionary(uniqueKeysWithValues: enteringGlyphs.enumerated().map { ($0.element.id, $0.offset) })
         let newOrder = new.map(\.id), oldOrder = old.map(\.id)
         func presentedRect(_ id: String) -> CGRect? { oldLookup[id]?.presentation(at: now).rect ?? oldRects[id] }
         func centers(_ runs: [[String]], rects: [String: CGRect]) -> [String: CGPoint] {
@@ -212,13 +209,8 @@ enum MorphMotion {
             }
             return result
         }
-        let enterCenters = centers(groups(new,members: entering,logicalOrigins: diff.entranceParents),rects: newRects)
+        let enterCenters = centers(groups(new,members: entering),rects: newRects)
         let exitCenters = centers(groups(old,members: exiting),rects: oldRects)
-        // A wave needs one shared starting delay. Per-kind base delays can make
-        // later digits/grouped runs start before earlier ordinary text.
-        let entranceBaseDelay = enteringGlyphs.map {
-            $0.kind != nil || enterCenters[$0.id] != nil ? 0.0 : 0.25
-        }.min() ?? 0
         func origin(_ center: CGPoint, _ rect: CGRect) -> CGPoint {
             CGPoint(x: (center.x-rect.minX)/max(rect.width,0.001),y: (center.y-rect.minY)/max(rect.height,0.001))
         }
@@ -233,8 +225,8 @@ enum MorphMotion {
                 // Upstream drops scale when it cancels a running segment animation.
                 start.scale = 1
             } else if let center = enterCenters[s.id] {
-                start.scale = scaling.factor(entering: true, grouped: true); start.opacity = 0; share = 0.35
-                if scaling.groupReplacements { end.origin = origin(center,rect); start.origin = end.origin }
+                start.scale = effects.scaleFactor(entering: true, grouped: true); start.opacity = 0; share = 0.35
+                if effects.usesGroupScaling { end.origin = origin(center,rect); start.origin = end.origin }
             } else {
                 let anchorID = anchor(at: index,ids: newOrder,persistent: persistent)
                 if let a = anchorID, let before = presentedRect(a), let after = newRects[a] {
@@ -243,25 +235,16 @@ enum MorphMotion {
                 }
                 start.opacity = 0
                 if let kind = s.kind { start.slide = kind == .digit ? -lineHeight : lineHeight }
-                else { start.scale = scaling.factor(entering: true, grouped: false); delay = 0.25; share = 0.5 }
+                else { start.scale = effects.scaleFactor(entering: true, grouped: false); delay = 0.25; share = 0.5 }
             }
             var trajectory = MorphTrajectory(segment: s,start: start,end: end,began: now,curve: curve,fadeDelay: delay,fadeShare: share)
             if let oldMotion, oldRects[s.id] != nil {
                 trajectory.entrance = oldMotion.entrance
-            } else if entrance.isEnabled, let rank = entranceRanks[s.id], curve.duration > 0 {
-                let fraction = entrance.delayFraction(at: Double(rank) / Double(max(1, enteringGlyphs.count - 1)))
-                // A single glyph has no stagger. Compress the original fade window
-                // to reserve room for the full wave without extending the timeline.
-                let fadeSpread = enteringGlyphs.count > 1 ? entrance.fadeSpread : 0
-                let blurSpread = enteringGlyphs.count > 1 ? entrance.blurSpread : 0
+            } else if entrance.radius > 0, !s.text.allSatisfy(\.isWhitespace), curve.duration > 0 {
                 trajectory.start.blur = entrance.radius
                 trajectory.entrance = .init(
-                    fade: .init(from: 0, to: 1, began: now, duration: curve.duration,
-                                delay: (fadeSpread > 0 ? entranceBaseDelay : delay) * (1 - fadeSpread) + fraction * fadeSpread,
-                                share: share * (1 - fadeSpread)),
-                    blur: .init(from: entrance.radius, to: 0, began: now, duration: curve.duration,
-                                delay: (blurSpread > 0 ? entranceBaseDelay : delay) * (1 - blurSpread) + fraction * blurSpread,
-                                share: share * (1 - blurSpread)))
+                    fade: .init(from: 0, to: 1, began: now, duration: curve.duration, delay: delay, share: share),
+                    blur: .init(from: entrance.radius, to: 0, began: now, duration: curve.duration, delay: delay, share: share))
             }
             if s.kind != nil, oldRects[s.id] != nil, let oldMotion {
                 trajectory.inheritedSlide = oldMotion.inheritedSlide ?? .init(from: oldMotion.start.slide,to: oldMotion.end.slide,began: oldMotion.began,curve: oldMotion.curve)
@@ -276,19 +259,19 @@ enum MorphMotion {
             var start = oldLookup[s.id]?.presentation(at: now) ?? MorphPresentation(rect: rect)
             start.scale = 1
             var end = start; end.opacity = 0
-            end.blur = exitBlurRadius.isFinite ? Double(min(64, max(0, exitBlurRadius))) : 0
+            end.blur = effects.exit.radius
             start.origin = CGPoint(x: 0.5, y: 0.5); end.origin = start.origin
             var share = 0.25
             if let center = exitCenters[s.id] {
-                if scaling.groupReplacements { start.origin = origin(center,start.rect); end.origin = start.origin }
-                end.scale = scaleExits ? scaling.factor(entering: false, grouped: true) : 1; share = 0.45
+                if effects.usesGroupScaling { start.origin = origin(center,start.rect); end.origin = start.origin }
+                end.scale = effects.scaleFactor(entering: false, grouped: true); share = 0.45
             } else {
                 if let a = anchor(at: index,ids: oldOrder,persistent: persistent,forwardFirst: true),
                    let before = oldRects[a], let after = newRects[a] {
                     end.rect.origin.x += after.minX-before.minX; end.rect.origin.y += after.minY-before.minY
                 }
                 if s.kind != nil { end.slide = lineHeight; share = 0.45 }
-                else { end.scale = scaleExits ? scaling.factor(entering: false, grouped: false) : 1 }
+                else { end.scale = effects.scaleFactor(entering: false, grouped: false) }
             }
             result.append(.init(segment: s,start: start,end: end,began: now,curve: curve,fadeShare: share,exiting: true))
         }

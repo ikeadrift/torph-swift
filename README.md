@@ -2,7 +2,7 @@
 
 **Original library by [Lochie Axon](https://github.com/lochie).** The text-matching algorithms and original motion behavior come from [Torph](https://github.com/lochie/torph) ([web demo](https://torph.lochie.me)). This is an unofficial SwiftUI port maintained by [ikeadrift](https://github.com/ikeadrift), not an official Lochie release or an indication of his endorsement. See [NOTICE](NOTICE) for source attribution and [LICENSE](LICENSE) for the retained MIT terms.
 
-A dependency-free native Swift port of [Lochie Axon’s Torph](https://torph.lochie.me). Matching characters move to their new positions, new characters fade and slide in, and removed characters fade, slide, and optionally shrink. Word grouping, character origins, anchor-based movement, grouped replacement, and numeric slides follow the upstream implementation. Version 0.2 adds native entrance blur and configurable character staggering.
+A dependency-free native Swift port of [Lochie Axon’s Torph](https://torph.lochie.me). Matching characters move to their new positions, new characters fade and slide in, and removed characters fade, slide, and optionally shrink. Word grouping, character origins, anchor-based movement, grouped replacement, and numeric slides follow the upstream implementation. Native effects add configurable entrance and exit blur with a 2-point default entrance blur.
 
 Requires **Swift 6**, **iOS 17+**, **macOS 14+**, **tvOS 17+**, **watchOS 10+**, or **visionOS 1+**. macOS and iOS Simulator builds have been verified; the other declared platforms have not been runtime-tested.
 
@@ -14,13 +14,13 @@ In Xcode, choose **File → Add Package Dependencies**, enter:
 https://github.com/ikeadrift/torph-swift.git
 ```
 
-Choose **Up to Next Major Version** starting at **0.3.2**, then add the **Torph** product to your app target.
+Choose **Up to Next Minor Version** starting at **0.4.0**, then add the **Torph** product to your app target.
 
 For another Swift package:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ikeadrift/torph-swift.git", from: "0.3.2")
+    .package(url: "https://github.com/ikeadrift/torph-swift.git", .upToNextMinor(from: "0.4.0"))
 ],
 targets: [
     .target(name: "MyFeature", dependencies: [
@@ -62,7 +62,6 @@ TextMorph(
     configuration: .init(
         timing: .spring(mass: 1, stiffness: 200, damping: 20),
         numbers: true,
-        scale: true,
         locale: Locale(identifier: "en_US"),
         alignment: .leading,
         lineSpacing: 4
@@ -73,70 +72,70 @@ TextMorph(
 )
 ```
 
-Default timing matches the web library’s cubic Bézier `(0.19, 1, 0.22, 1)` over **0.4 seconds**. Unlike the web API, durations use seconds. Springs use the upstream physics, sampled curve, and settling-duration algorithm. Completion follows the container width animation, including its remaining time when an update retains the same target width. Glyph animations and the container height finish independently. Stagger never extends the configured motion duration, though glyphs can finish after a resumed width animation. A new update cancels the previous callback token; stale completions are ignored. Disappearance tears down animations without firing completion/cancellation callbacks, as upstream does. Immediate updates do not fire animation callbacks.
+Default timing matches the web library’s cubic Bézier `(0.19, 1, 0.22, 1)` over **0.4 seconds**. Unlike the web API, durations use seconds. Springs use the upstream physics, sampled curve, and settling-duration algorithm. Completion follows the container width animation, including its remaining time when an update retains the same target width. Glyph animations and the container height finish independently. Glyphs can finish after a resumed width animation. A new update cancels the previous callback token; stale completions are ignored. Disappearance tears down animations without firing completion/cancellation callbacks, as upstream does. Immediate updates do not fire animation callbacks.
 
-## Entrance blur and stagger
+## Effects
 
-New text starts with a **2-point blur** that clears as it fades in. Initial text and Reduce Motion/disabled/RTL fallbacks appear immediately without entrance effects. Retained characters do not restart their entrance effects.
+All appearance options live in `configuration.effects`. Timing is separate. Presets are ordinary editable values, and choosing one replaces the complete effects configuration:
+
+```swift
+TextMorph(message, configuration: .init(effects: .standard))
+TextMorph(message, configuration: .init(effects: .fade))
+TextMorph(message, configuration: .init(effects: .fadeAndBlur()))
+TextMorph(message, configuration: .init(effects: .fadeAndBlur(blurRadius: 5)))
+```
+
+| Preset | Entrance scale / blur | Exit scale / blur | Large replacement scaling |
+| --- | --- | --- | --- |
+| `.standard` (default) | 0.95 / 2 pt | 0.95 / 0 pt | Shared center, 0.8 in and out |
+| `.fade` | 1 / 0 pt | 1 / 0 pt | Individual, no scaling |
+| `.fadeAndBlur()` | 1 / 2 pt | 1 / 2 pt | Individual, no scaling |
+
+Fade, matching movement, and numeric rolls are part of the base animation. These presets change scale and blur; `.fade` does not disable matching movement or numeric rolls. Use `configuration.disabled` for immediate native text without animation.
+
+Customize each direction together:
 
 ```swift
 TextMorph(message, configuration: .init(
-    timing: .easeOut(duration: 0.6),
-    entrance: .init(
-        blurRadius: 6,
-        stagger: 0.25,
-        staggerCurve: .easeInOut
+    timing: .spring(.snappy),
+    effects: .init(
+        entrance: .init(scale: 0.95, blurRadius: 2),
+        exit: .init(scale: 1, blurRadius: 2),
+        replacementScaling: .individual
     )
 ))
 ```
 
-`stagger` is the total first-to-last entrance delay as a fraction of the animation duration, not a per-character delay. Here the entrances are spread across 0.15 seconds. Each fade/blur window is compressed to keep the complete effect within the 0.6-second animation. Stagger defaults to `0`; it automatically follows the settling duration when using springs.
+`entrance` describes the starting scale and blur of inserted text; it settles to scale 1 and blur 0. `exit` describes the final scale and blur of removed text. Scale `1` means unchanged size; blur `0` disables blur. Fade timing follows the original Torph motion rules. Ordinary numeric runs use their original slide/fade rules instead of individual text scaling.
 
-`staggerCurve` controls how character order maps to start times. It accepts SwiftUI `UnitCurve` values such as `.linear` (the default), `.easeIn`, `.easeOut`, `.easeInOut`, or `.bezier(startControlPoint:endControlPoint:)`. This is separate from `timing`, which controls movement.
+### Grouped scaling
 
-Blur follows the fade stagger by default. Set `blurStagger` to tune its spread independently:
-
-```swift
-entrance: .init(blurRadius: 8, stagger: 0.3, blurStagger: 0.15, staggerCurve: .easeOut)
-```
-
-Staggered fade and blur start times use a shared baseline across text, numbers, and replacement groups, so their order follows the configured curve. Splitting a word for staggering preserves its original entry grouping and movement anchor.
-
-Only newly inserted visible text participates in the wave; spaces and newlines do not consume delay slots. Enabling stagger splits newly inserted words into Swift graphemes, preserving emoji sequences but potentially changing kerning or ligatures. Existing words stay intact until the matcher needs to split them. Without stagger, new whole words remain whole text runs and blur together. A single entering character has no stagger delay. Interrupted entrances retain their original blur and fade progress, including pending delays.
-
-Blur radius is clamped to 0–64 points and stagger fractions to 0–0.9; nonfinite inputs become zero. To restore the pre-0.2 entrance appearance, use `entrance: .init(blurRadius: 0)`.
-
-## Scaling and outgoing blur
-
-For fade and blur without any shrinking or growing:
+For six or more consecutive replaced segments, `.grouped(entrance:exit:)` overrides the individual scale factors and uses a shared center. It does **not** change matching identities, replacement detection, blur, or fade timing. An intact word counts as one segment.
 
 ```swift
-TextMorph(message, configuration: .init(
-    entrance: .init(blurRadius: 4),
-    scaling: .none,
-    exitBlurRadius: 4
-))
+var effects = TextMorphConfiguration.Effects.standard
+// Whole replacement blocks scale around their shared center.
+effects.replacementScaling = .grouped(entrance: 0.9, exit: 0.85)
+// Or use the entrance/exit scales around each text run's own center.
+effects.replacementScaling = .individual
 ```
 
-Matching text still moves between its old and new positions, and numeric slides remain active. Removed text blurs as it fades out; interrupted exits begin at the current blur/opacity rather than restarting.
+Grouped scaling defaults to 0.8 in both directions. To disable **all** scaling, start from `.fade` or `.fadeAndBlur()`, which set both individual scales to 1 and select `.individual`. Setting only `entrance.scale` or `exit.scale` does not override an explicit grouped scale.
 
-Customize the initial entrance size and final exit size independently (`1` means unchanged):
+### Customizing a preset
 
 ```swift
-scaling: .init(
-    entrance: 0.95,
-    exit: 0.95,
-    groupedEntrance: 0.8,
-    groupedExit: 0.8,
-    groupReplacements: true
-)
+var effects = TextMorphConfiguration.Effects.fadeAndBlur()
+effects.exit.blurRadius = 4
+effects.entrance.scale = 0.98
+let configuration = TextMorphConfiguration(timing: .spring(), effects: effects)
 ```
 
-Changes to effects or timing apply to the next text morph. An animation already in progress keeps its existing settings and finishes without snapping or cancelling. Changes to segmentation, layout, or disabled/reduced-motion behavior still reset the layout.
+Initial text and Reduce Motion/disabled/RTL fallbacks appear immediately. Whole words retain native shaping until the matcher needs to split them. Retained characters do not restart their entrance effects; interrupted exits begin at their current blur/opacity. Scale factors are clamped to `0...2` (nonfinite values use `1`) and blur to `0...64` points (nonfinite values use `0`).
 
-These defaults preserve the previous appearance. Set `groupReplacements: false` to use the individual factors and each text run's own center even for large replacements. An intact word remains one run; already split words use individual characters. Set `scaling: .none` to disable all scaling. The existing `scale: false` option disables **all exit scaling**, including grouped exits, while leaving entrance settings independent.
+Effects and timing changes apply to the next text morph. An animation already in progress finishes with its existing settings. Changes to segmentation, layout, or disabled/reduced-motion behavior reset the layout.
 
-Scale factors are clamped to `0...2` (nonfinite values use `1`); outgoing blur is clamped to `0...64` points (nonfinite values use `0`). Outgoing blur defaults to zero. These controls do not change matching identities or fade duration.
+**Upgrading from 0.3:** see the [0.4 migration guide](Documentation/Migration-0.4.md). The old scaling flag and scattered effect properties have been removed. Stagger and spread are no longer supported.
 
 ## Native springs
 

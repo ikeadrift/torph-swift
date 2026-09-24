@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+- **Breaking:** consolidate appearance into `effects.entrance`, `effects.exit`, and `effects.replacementScaling`. Remove the top-level `scale`, `entrance`, `scaling`, and `exitBlurRadius` properties and the `Scaling` type.
+- Add complete, editable `.standard`, `.fade`, and `.fadeAndBlur(blurRadius:)` presets. The default blur remains 2 points.
+- Use explicit `.individual` or `.grouped(entrance:exit:)` replacement scaling, without overlapping enable flags.
+- Remove stagger/spread controls, their rendering logic, and rendering-only character splits. Matching and original Torph fade timing remain intact.
+- Preserve ongoing animations when effects change, including transitions between the new presets.
+- Add [migration instructions](Documentation/Migration-0.4.md) and preset rendering coverage.
+
 ## 0.3.2
 
 - Reduce the default entrance blur from 6 points to 2 points. Explicit blur values remain unchanged.

@@ -14,12 +14,12 @@ final class InterruptionRegressionTests: XCTestCase {
     func testSplittingAMovingWordPreservesItsPresentedPosition() {
         let initial = TextMatcher.segment("hello world")
         let first = TextMatcher.diff(from: initial, to: "world hello")
-        let firstPlan = MorphMotion.plan(diff: first, oldRects: rects(first.preparedPrevious), newRects: rects(first.segments), previous: [], now: 0, curve: curve, lineHeight: 20, scaleExits: true)
+        let firstPlan = MorphMotion.plan(diff: first, oldRects: rects(first.preparedPrevious), newRects: rects(first.segments), previous: [], now: 0, curve: curve, lineHeight: 20)
         let now = 0.05
         let world = firstPlan.first { $0.id == "world" }!
         let second = TextMatcher.diff(from: first.segments, to: "worlds hello")
         XCTAssertNotNil(second.splits["world"])
-        let secondPlan = MorphMotion.plan(diff: second, oldRects: rects(second.preparedPrevious), newRects: rects(second.segments), previous: firstPlan, now: now, curve: curve, lineHeight: 20, scaleExits: true)
+        let secondPlan = MorphMotion.plan(diff: second, oldRects: rects(second.preparedPrevious), newRects: rects(second.segments), previous: firstPlan, now: now, curve: curve, lineHeight: 20)
         let w = secondPlan.first { $0.id == "world:0" }!
         XCTAssertEqual(w.presentation(at: now).rect.minX, world.presentation(at: now).rect.minX, accuracy: 0.0001, "Splitting a moving word should not jump its first character")
         let d = secondPlan.first { $0.id == "world:4" }!
@@ -32,11 +32,11 @@ final class InterruptionRegressionTests: XCTestCase {
         let old = TextMatcher.segment("hello there")
         let first = TextMatcher.diff(from: old, to: "hello world")
         let firstPlan = MorphMotion.plan(diff: first, oldRects: rects(first.preparedPrevious), newRects: rects(first.segments),
-                                         previous: [], now: 0, curve: curve, lineHeight: 20, scaleExits: true)
+                                         previous: [], now: 0, curve: curve, lineHeight: 20)
         let word = firstPlan.first { $0.segment.text == "world" }!
         let second = TextMatcher.diff(from: first.segments, to: "hello worlds")
         let secondPlan = MorphMotion.plan(diff: second, oldRects: rects(second.preparedPrevious), newRects: rects(second.segments),
-                                          previous: firstPlan, now: 0.1, curve: curve, lineHeight: 20, scaleExits: true)
+                                          previous: firstPlan, now: 0.1, curve: curve, lineHeight: 20)
         let child = secondPlan.first { $0.id == "world:0" }!
         for time in [0.1, 0.3, 0.5, 0.8, 1] {
             XCTAssertEqual(child.presentation(at: time).opacity, word.presentation(at: time).opacity, accuracy: 0.0001)

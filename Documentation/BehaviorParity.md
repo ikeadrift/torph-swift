@@ -86,8 +86,10 @@ A changing named coordinate space could transiently return global child frames d
 
 The no-argument spring preset intentionally uses faster physical parameters (1 / 360 / 30). Explicit 1 / 100 / 10 retains the upstream spring. Opt-in native `Spring` values use SwiftUI's solver, with a 10-second settling cap; they are an additional native API, not an upstream sampled-curve claim.
 
-## Native entrance effects (0.2.0)
+## Native effects (0.4.0)
 
-The matching engine's upstream corpus remains unchanged. Version 0.2 introduced a 6-point entrance blur (reduced to 2 points in 0.3.2); use `entrance: .init(blurRadius: 0)` to retain the pre-0.2 appearance. Optional character staggering is a native extension, not an upstream parity claim. It splits only inserted words before measurement, distributes fade/blur start times using a SwiftUI `UnitCurve`, and reserves a configurable fraction of the existing duration for that distribution. Individual fade/blur windows shrink so no extra time is appended. Spaces do not participate in the stagger order. Surviving entrance tracks retain their original timelines during interruption.
+The matching engine's upstream corpus remains unchanged. Native entrance blur defaults to 2 points and outgoing blur to zero; both are configured under `effects`. Scale factors and grouped scale origins are configurable without changing the original fade windows. `.standard` retains the original individual/group scale factors, `.fade` removes blur and scaling, and `.fadeAndBlur()` uses 2-point blur in both directions without scaling.
 
-Two native interruption corrections also apply: split characters inherit their moving parent word's current presentation, and width completion no longer discards an unfinished height animation. The public completion callback still follows width; rendering continues until height and all glyph tracks have settled.
+Character staggering, spread, independent blur staggering, and rendering-only character splits were removed in 0.4. Whole-word shaping is retained until the matcher calls for a split. Historical 0.2 releases offered those native extensions; they are no longer part of the API or renderer.
+
+Native interruption corrections remain: split characters inherit their moving parent word's current presentation, and width completion does not discard an unfinished height animation. The public completion callback follows width; rendering continues until height and all glyph tracks settle. Effects/timing edits do not reset an active animation. See [the migration guide](Migration-0.4.md) for the breaking API changes.

@@ -35,7 +35,7 @@ final class MorphMotionTests: XCTestCase {
     func testNewCapitalTTravelsWithTransactionNotProcessing() {
         let diff = TextMatcher.diff(from: TextMatcher.segment("Processing transaction"),to: "Transaction complete")
         let before = positions(diff.preparedPrevious), after = positions(diff.segments)
-        let motion = MorphMotion.plan(diff: diff,oldRects: before,newRects: after,previous: [],now: 0,curve: curve,lineHeight: 20,scaleExits: true)
+        let motion = MorphMotion.plan(diff: diff,oldRects: before,newRects: after,previous: [],now: 0,curve: curve,lineHeight: 20)
         let t = motion.first { $0.segment.text == "T" }!
         let r = motion.first { $0.segment.id == "transaction:1" }!
         XCTAssertEqual(t.start.rect.minX,before["transaction:0"]!.minX)
@@ -61,7 +61,7 @@ final class MorphMotionTests: XCTestCase {
         XCTAssertEqual(MorphMotion.groups(old,members: Set(old.map(\.id))).count,1)
         XCTAssertTrue(MorphMotion.groups(old,members: Set(old.dropFirst().map(\.id))).isEmpty)
         let diff = TextMatcher.diff(from: old,to: "UVWXYZ",numbers: false)
-        let plan = MorphMotion.plan(diff: diff,oldRects: positions(old),newRects: positions(diff.segments),previous: [],now: 0,curve: curve,lineHeight: 20,scaleExits: true)
+        let plan = MorphMotion.plan(diff: diff,oldRects: positions(old),newRects: positions(diff.segments),previous: [],now: 0,curve: curve,lineHeight: 20)
         XCTAssertTrue(plan.filter { $0.exiting }.allSatisfy { $0.end.scale == 0.8 && $0.fadeShare == 0.45 })
         XCTAssertTrue(plan.filter { !$0.exiting }.allSatisfy { $0.start.scale == 0.8 && $0.fadeShare == 0.35 })
         for item in plan where !item.exiting {
@@ -71,7 +71,7 @@ final class MorphMotionTests: XCTestCase {
     func testNumericReplacementSlidesAndNeverChangesSurvivorText() {
         let old = TextMatcher.segment("123")
         let diff = TextMatcher.diff(from: old,to: "124")
-        let plan = MorphMotion.plan(diff: diff,oldRects: positions(old),newRects: positions(diff.segments),previous: [],now: 0,curve: curve,lineHeight: 20,scaleExits: true)
+        let plan = MorphMotion.plan(diff: diff,oldRects: positions(old),newRects: positions(diff.segments),previous: [],now: 0,curve: curve,lineHeight: 20)
         XCTAssertEqual(plan.first { $0.segment.text == "4" }?.start.slide,-20)
         XCTAssertEqual(plan.first { $0.segment.text == "3" }?.end.slide,20)
         XCTAssertEqual(plan.first { $0.segment.text == "4" }?.fadeShare,0.25)
@@ -81,9 +81,9 @@ final class MorphMotionTests: XCTestCase {
     func testInterruptedSurvivorContinuesFromPresentationPosition() {
         let old = TextMatcher.segment("hello world")
         let first = TextMatcher.diff(from: old,to: "world hello")
-        let a = MorphMotion.plan(diff: first,oldRects: positions(old),newRects: positions(first.segments),previous: [],now: 0,curve: curve,lineHeight: 20,scaleExits: true)
+        let a = MorphMotion.plan(diff: first,oldRects: positions(old),newRects: positions(first.segments),previous: [],now: 0,curve: curve,lineHeight: 20)
         let second = TextMatcher.diff(from: first.segments,to: "hello world")
-        let b = MorphMotion.plan(diff: second,oldRects: positions(first.segments),newRects: positions(second.segments),previous: a,now: 0.2,curve: curve,lineHeight: 20,scaleExits: true)
+        let b = MorphMotion.plan(diff: second,oldRects: positions(first.segments),newRects: positions(second.segments),previous: a,now: 0.2,curve: curve,lineHeight: 20)
         XCTAssertEqual(b.first { $0.id == "hello" }!.start.rect,a.first { $0.id == "hello" }!.presentation(at: 0.2).rect)
     }
     func testContainerResumesSameTargetAndHoldsWhenEmpty() {
@@ -96,10 +96,10 @@ final class MorphMotionTests: XCTestCase {
     func testRapidNumericUpdatesDoNotRestartAnEnteringDigitsFade() {
         let old = TextMatcher.segment("123")
         let first = TextMatcher.diff(from: old,to: "124")
-        let initial = MorphMotion.plan(diff: first,oldRects: positions(old),newRects: positions(first.segments),previous: [],now: 0,curve: curve,lineHeight: 20,scaleExits: true)
+        let initial = MorphMotion.plan(diff: first,oldRects: positions(old),newRects: positions(first.segments),previous: [],now: 0,curve: curve,lineHeight: 20)
         let digit = first.segments.last!.id
         let second = TextMatcher.diff(from: first.segments,to: "1240")
-        let interrupted = MorphMotion.plan(diff: second,oldRects: positions(first.segments),newRects: positions(second.segments),previous: initial,now: 0.05,curve: curve,lineHeight: 20,scaleExits: true)
+        let interrupted = MorphMotion.plan(diff: second,oldRects: positions(first.segments),newRects: positions(second.segments),previous: initial,now: 0.05,curve: curve,lineHeight: 20)
         let a = initial.first { $0.id == digit }!, b = interrupted.first { $0.id == digit && !$0.exiting }!
         for t in [0.05,0.10,0.20,0.25,0.5] {
             XCTAssertEqual(a.presentation(at: t).opacity,b.presentation(at: t).opacity,accuracy: 0.000001)
@@ -114,7 +114,7 @@ final class MorphMotionTests: XCTestCase {
         for index in 0..<40 {
             let now = Double(index)*0.06
             let diff = TextMatcher.diff(from: segments,to: values[index % values.count])
-            let next = MorphMotion.plan(diff: diff,oldRects: positions(diff.preparedPrevious),newRects: positions(diff.segments),previous: motions,now: now,curve: curve,lineHeight: 20,scaleExits: true)
+            let next = MorphMotion.plan(diff: diff,oldRects: positions(diff.preparedPrevious),newRects: positions(diff.segments),previous: motions,now: now,curve: curve,lineHeight: 20)
             for item in next where !item.exiting {
                 if let before = motions.first(where: { !$0.exiting && $0.id == item.id }), diff.preparedPrevious.contains(where: { $0.id == item.id }) {
                     XCTAssertEqual(item.presentation(at: now).rect.origin,before.presentation(at: now).rect.origin)

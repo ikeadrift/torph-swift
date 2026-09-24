@@ -129,7 +129,6 @@ public struct TextMorph: View {
         // No view transition is allowed to invent a position for a newly inserted glyph.
         // Both layouts are measured first; MorphMotion explicitly supplies its anchor.
         let diff = TextMatcher.diff(from: segments,to: text,numbers: configuration.numbers,locale: configuration.locale,cursorIndex: cursorIndex)
-            .preparingEntrance(configuration.entrance)
         request = diff; segments = diff.segments; measurementID = UUID()
     }
 
@@ -154,8 +153,7 @@ public struct TextMorph: View {
             if activeAnimation != nil { onAnimationCancel?() }
             let lineCount = max(1,segments.filter { $0.text == "\n" }.count+1)
             trajectories = MorphMotion.plan(diff: request,oldRects: previous,newRects: next,previous: trajectories,
-                                            now: now,curve: curve,lineHeight: newBounds.height/Double(lineCount),scaleExits: configuration.scale,
-                                            entrance: configuration.entrance, scaling: configuration.scaling, exitBlurRadius: configuration.exitBlurRadius)
+                                            now: now,curve: curve,lineHeight: newBounds.height/Double(lineCount), effects: configuration.effects)
             sizeMotion = MorphSizeMotion(from: oldSize,to: newBounds.size,previous: sizeMotion,now: now,curve: curve,hold: segments.isEmpty)
             settledSize = newBounds.size
             completionDeadline = sizeMotion!.width.began+sizeMotion!.width.curve.duration
@@ -271,35 +269,26 @@ public struct TextMorphConfiguration: Equatable, Sendable {
     public enum Alignment: Sendable { case leading, center, trailing }
     public var timing: Timing
     public var numbers: Bool
-    /// Enables exit scaling, including grouped exits. Entrance scaling uses `scaling`.
-    public var scale: Bool
     public var disabled: Bool
     public var respectReducedMotion: Bool
     public var locale: Locale
     public var alignment: Alignment
     public var lineSpacing: CGFloat
-    public var entrance: Entrance
-    public var scaling: Scaling
-    /// Blur radius reached as removed text fades out. Zero disables exit blur.
-    public var exitBlurRadius: CGFloat
+    public var effects: Effects
 
     public init(
-        timing: Timing = .easeOut(), numbers: Bool = true, scale: Bool = true,
+        timing: Timing = .easeOut(), numbers: Bool = true,
         disabled: Bool = false, respectReducedMotion: Bool = true,
         locale: Locale = Locale(identifier: "en"), alignment: Alignment = .leading,
-        lineSpacing: CGFloat = 0, entrance: Entrance = .init(),
-        scaling: Scaling = .init(), exitBlurRadius: CGFloat = 0
+        lineSpacing: CGFloat = 0, effects: Effects = .standard
     ) {
         self.timing = timing
         self.numbers = numbers
-        self.scale = scale
         self.disabled = disabled
         self.respectReducedMotion = respectReducedMotion
         self.locale = locale
         self.alignment = alignment
         self.lineSpacing = lineSpacing
-        self.entrance = entrance
-        self.scaling = scaling
-        self.exitBlurRadius = exitBlurRadius
+        self.effects = effects
     }
 }

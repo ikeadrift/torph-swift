@@ -60,9 +60,7 @@ final class ConfigurationChangeTests: XCTestCase {
 
         // Swap complete settings repeatedly while text is in flight.
         for blur in [4.0, 0.0, 4.0] {
-            model.configuration.scaling = .none
-            model.configuration.entrance = .init(blurRadius: blur)
-            model.configuration.exitBlurRadius = blur
+            model.configuration.effects = .fadeAndBlur(blurRadius: blur)
             model.configuration.timing = .spring()
             try await Task.sleep(for: .milliseconds(40))
         }
